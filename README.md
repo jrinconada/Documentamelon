@@ -12,8 +12,12 @@
 - **Democratic presence**: Formulas are ranked using a _voting system without account_. Liked formulas move up the list, disliked move down and 0 votes removes the formula.
 - **Profiles**: 4 ways to use de App, as _Offline_ users only use the playground, _Students_ can see the list of formulas, _Citizens_ can vote and _Teachers_ can publish formulas.
 ## Tools
-### Tech stack
-### Management
+- **Postgres** [database](#database) on _Supabase_.
+- **Kotlin Multiplatform** application [develoment](#architecture) on _Android_, _Windows_ and _Web Assembly_ .
+- **Git** for version control and documentation on _GitHub_.
+- **Kanban** for tracking tasks on _Trello_.
+- **Figma** for icon design.
+- **Carrd** for the landing [page](https://calculamelon.carrd.co/).
 ## Architecture
 ## Scalability
 ## Database
