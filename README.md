@@ -1,4 +1,4 @@
-# :watermelon: Documentamelon :watermelon: 
+# :watermelon: Documentamelon
 `Technical documentation for the Calculamelon App`
 ## :pear: Intro
 **Calculamelon** is an application to learn math with a language without numbers or letters, just basic math symbols and fruits using an intuitive **playground** and a repository of **published formulas** managed by a **democratic community**.
@@ -66,6 +66,35 @@ suspend fun vote(formula: Formula, user: String, up: Boolean, new: Boolean = tru
 suspend fun voted(formula: Formula, user: String): Int?
 ```
 ### Domain
+```mermaid
+---
+title: Formula class diagram
+---
+classDiagram
+    Term <|-- Formula : has
+    Term <|-- Quantity : inherits
+    Term <|-- Symbol : inherits
+    class Formula{
+        +[Term] terms
+        +translate() string
+        +serialize() FormulaData
+    }
+    class Term{
+      +isOperation() bool
+    }
+    class Quantity{
+        +int count
+        +isEmpty() bool
+        +isFull() bool
+        +isValidQuantity() bool
+    }
+    class Symbol{
+        +char symbol
+        +change()
+    }
+
+```
+### View
 ## :elephant: Scalability
 ## :floppy_disk: Database
 - **Formulas** stores published formulas as text using the formula as the _primary key_ to prevent duplicates and number of votes is an integer to sort by popularity.
