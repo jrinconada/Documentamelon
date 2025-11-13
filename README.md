@@ -42,7 +42,8 @@ data class VoteData (val formula: String, val user: String, val vote: Boolean)
 #### Repository interface
 ```kotlin
 /**
- * Returns a list of formulas, empty list if there are no formulas or an error occurs
+ * Returns a list of formulas a number of formulas up to a determied page size starting from a given index,
+ * empty list if there are no formulas or an error occurs
  */
 suspend fun load(start: Int = 0): List<FormulaData>
 /**
@@ -66,33 +67,42 @@ suspend fun vote(formula: Formula, user: String, up: Boolean, new: Boolean = tru
 suspend fun voted(formula: Formula, user: String): Int?
 ```
 ### Domain
+The main component of this application business logic is the **Formula**, it has a list of **Terms** that can be **Quantities** or **Symbols**.
+
+<img width="733" height="249" alt="basicformula-tag" src="https://github.com/user-attachments/assets/af30e580-1304-4cca-9bad-cdbda7013a60" />
+
+Here is a _simplified class diagram_ to illustrate the fundamental relations and caracteristics of this 4 components.
 ```mermaid
 ---
-title: Formula class diagram
+title: Simplified class diagram
 ---
 classDiagram
-    Term <|-- Formula : has
+    Term *-- Formula : has
     Term <|-- Quantity : inherits
     Term <|-- Symbol : inherits
-    class Formula{
-        +[Term] terms
-        +translate() string
-        +serialize() FormulaData
+    class Formula {
+        [Term] terms
+        translate() string
+        serialize() FormulaData
+        bool isEmpty()
+        changeSymbol(old, new)
+        addFruit(to)
+        moveFruit(from, to)
+        removeFruit(from)        
     }
-    class Term{
-      +isOperation() bool
+    class Term {
+        bool isOperation() 
     }
-    class Quantity{
-        +int count
-        +isEmpty() bool
-        +isFull() bool
-        +isValidQuantity() bool
+    class Quantity {
+        int count
+        bool isEmpty()
+        bool isFull()
+        bool isValidQuantity()
     }
-    class Symbol{
-        +char symbol
-        +change()
+    class Symbol {
+        char symbol
+        change(direction)
     }
-
 ```
 ### View
 ## :elephant: Scalability
