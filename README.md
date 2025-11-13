@@ -68,14 +68,14 @@ suspend fun vote(formula: Formula, user: String, up: Boolean, new: Boolean = tru
 suspend fun voted(formula: Formula, user: String): Int?
 ```
 ### Domain
-The main component of this application business logic is the **Formula**, it has a list of **Terms** that can be **Quantities** or **Symbols**.
+The main component of this application business logic is the `Formula`, it has a list of `Term` that can be a `Quantity` or a `Symbol`.
 
 <img width="733" height="268" alt="basicformula-tag" src="https://github.com/user-attachments/assets/e570e934-2fec-4186-bc5c-eca2d718a17f" />
 
 Here is a _simplified class diagram_ to illustrate the fundamental relations and caracteristics of this 4 components.
 ```mermaid
 ---
-title: Simplified class diagram
+title: Class diagram
 ---
 classDiagram
     Term *-- Formula : has
@@ -83,8 +83,8 @@ classDiagram
     Term <|-- Symbol : inherits
     class Formula {
         [Term] terms
-        translate() string
-        serialize() FormulaData
+        string translate()
+        FormulaData serialize()
         bool isEmpty()
         changeSymbol(old, new)
         addFruit(to)
@@ -144,6 +144,7 @@ data class Quantity(val quantity: String): Term() {
 }
 ```
 #### Symbol
+Note that **change** methods return `Symbols`. This is needed to construct a new `Symbol` and properly change the state with a `ViewModel`.
 ```kotlin
 /**
  * A symbol can be a comparison (= < >) or an operation (+ - * /).
@@ -198,6 +199,7 @@ data class Symbol(private val letter: Char): Term() {
 }
 ```
 #### Formula
+Note that the 4 methods that can result in a change on the formula (`changeSymbol`, `addFruit`, `moveFruit` and `removeFruit`) return a new `Formula` to properly update the `ViewModel` with copy.
 ```kotlin
 /**
  * A formula is a list of terms.
@@ -279,24 +281,9 @@ data class Formula(private val formulaData: FormulaData) {
 }
 ```
 ### View
-## :elephant: Scalability
-With a simple calculation we can estimate near **30 million** unique possible **formulas** could be stored in the database.
-
-<img width="2810" height="518" alt="formula-scale" src="https://github.com/user-attachments/assets/48f54e51-f85b-41d5-a735-1b0eb992c6e5" />
-
-- A **quantity** can contains a value from 0 to 16. So **17** possibilities.
-- A **symbol** can be one of 3 comparisons or 4 operations. So **7** possibilities.
-- A **formula** can be 3, 5 or 7 terms long, with some conditions:
-    1. 3 term formulas can only have comparison symbols. So 867 possibilities.
-    2. 5 term formulas must have a comparison and an operation (in any order), so 2 combinations for all the combinations of 5 terms. So 206346 possibilities.
-    3. 7 term formulas can have any combination of symbols without restriction. So 286477703 possibilities
-    4. The "unitary formula" (that is a quantity with count 0) is never stored in the list and cannot be stored.
-    5. Consecutive equals of empty quantities are not allowed, so _0_, _0=0_, _0=0=0_, _0=0=0=0_ are all equivalent, also _5=0_ is equivalent to _5=0=0_ an so on.
- 
-The calculation in the image does not take points 4 and 5 into account, but it will just be a few less formulas, so the magnitude of the estimation does not change.
 ## :floppy_disk: Database
-- **Formulas** stores published formulas as text using the formula as the _primary key_ to prevent duplicates and number of votes is an integer to sort by popularity.
-- **Votes** stores every vote, it is related to formulas by the formula text as a _foreign key_. A vote _primary key_ is a combination of the **formula** and the **user ID**, so one vote for user and formula is enforced. On the field **vote** _true_ means add up one vote, _false_ substract one vote.
+- `Formulas` stores published formulas as text using the formula as the _primary key_ to prevent duplicates and number of votes is an integer to sort by popularity.
+- `Votes` stores every vote, it is related to formulas by the formula text as a _foreign key_. A vote _primary key_ is a combination of the **formula** and the **user ID**, so one vote for user and formula is enforced. On the field `vote` `true` means add up one vote, `false` substract one vote.
 ### Schema
 <img width="720" alt="database-schema" src="https://github.com/user-attachments/assets/6bb8431d-8548-43e3-a164-a27665ba8da7" />
 
@@ -363,3 +350,26 @@ BEGIN
   RETURN NEW;
 END;
 ```
+## :elephant: Scalability
+There are two types of data on the database: `formulas` and `votes`. Let's estimate the scale of each one.
+#### Formulas
+The first constraint on the size of `formulas` is the **uniqueness** of the formula, so it is limited to the possible combinations of terms.
+With a simple calculation we can estimate near **30 million** unique possible **formulas** could be stored in the database.
+
+<img width="2810" height="518" alt="formula-scale" src="https://github.com/user-attachments/assets/48f54e51-f85b-41d5-a735-1b0eb992c6e5" />
+
+- A **quantity** can contains a value from 0 to 16. So **17** possibilities.
+- A **symbol** can be one of 3 comparisons or 4 operations. So **7** possibilities.
+- A **formula** can be 3, 5 or 7 terms long, with some conditions:
+    1. 3 term formulas can only have comparison symbols. So 867 possibilities.
+    2. 5 term formulas must have a comparison and an operation (in any order), so 2 combinations for all the combinations of 5 terms. So 206346 possibilities.
+    3. 7 term formulas can have any combination of symbols without restriction. So 286477703 possibilities
+    4. The "unitary formula" (that is a quantity with count 0) is never stored in the list and cannot be stored.
+    5. Consecutive equals of empty quantities are not allowed, so _0_, _0=0_, _0=0=0_, _0=0=0=0_ are all equivalent, also _5=0_ is equivalent to _5=0=0_ an so on.
+ 
+The calculation in the image does not take points 4 and 5 into account, but it will just be a few less formulas, so the magnitude of the estimation does not change.
+
+Having potentialy millions of formulas it is not usable to retrive and show directly in an frontend application, so **pagination** is implement with an infinite scroll and load a fixed size page by index.
+
+To have millions of formulas as useful information for the user they have to be **ranked**. To grant the users all control over the published formulas a **demotratic** ranking based on **votes** is implemented. So users vote on the formulas and they are sorted by the number of votes.
+#### Votes
