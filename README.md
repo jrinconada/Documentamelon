@@ -40,6 +40,7 @@ The complete version of vote data is used to _POST_ a vote, for updating and che
 data class VoteData (val formula: String, val user: String, val vote: Boolean)
 ```
 #### Repository interface
+Note that _KDoc_ is user for commenting functions without **annotations**, this is deliverate, not to add unnecessary noise to the explanations.
 ```kotlin
 /**
  * Returns a list of formulas a number of formulas up to a determied page size starting from a given index,
@@ -69,7 +70,7 @@ suspend fun voted(formula: Formula, user: String): Int?
 ### Domain
 The main component of this application business logic is the **Formula**, it has a list of **Terms** that can be **Quantities** or **Symbols**.
 
-<img width="733" height="249" alt="basicformula-tag" src="https://github.com/user-attachments/assets/af30e580-1304-4cca-9bad-cdbda7013a60" />
+<img width="733" height="268" alt="basicformula-tag" src="https://github.com/user-attachments/assets/e570e934-2fec-4186-bc5c-eca2d718a17f" />
 
 Here is a _simplified class diagram_ to illustrate the fundamental relations and caracteristics of this 4 components.
 ```mermaid
@@ -104,8 +105,195 @@ classDiagram
         change(direction)
     }
 ```
+Here is the **code** of the actual classes with just the function headers and comments:
+#### Term
+```kotlin
+/**
+ * An abstract class in a list that represent a formula. It can be a Quantity or a Symbol.
+ */
+abstract class Term {
+    /**
+     * Returns true if the term is an operation symbol (+, -, *, /), false otherwise
+     */
+    fun isOperation(): Boolean
+}
+```
+#### Quantity
+```kotlin
+/**
+ * A quantity is a number between a range.
+ * It is constructed using a text representation of a number.
+ */
+data class Quantity(val quantity: String): Term() {
+    /**
+     * Returns true if the quantity count is lower or equal to the lower limit
+     */
+    fun isEmpty(): Boolean
+    /**
+     * Returns true if the quantity count  is greater or equal to the upper limit
+     */
+    fun isFull(): Boolean
+    companion object {
+        const val MIN = 0 // Quantity range lower limit
+        const val MAX = 16 // Quantity range upper limit
+        /**
+         * Returns true if a text is an integer number and it is in the valid range
+         */
+        fun isValidQuantity(term: String): Boolean
+    }
+}
+```
+#### Symbol
+```kotlin
+/**
+ * A symbol can be a comparison (= < >) or an operation (+ - * /).
+ * It is constructed using the character representation of that symbol.
+ * An interface called Symbols is used to hold the char an the drawable resource for the symbol.
+ */
+data class Symbol(private val letter: Char): Term() {
+    /**
+     * Translates from character to Symbols interface
+     */
+    private fun translateSymbol(symbol: Char): Symbols
+    /**
+     * Changes the symbol based on the swipe gesture of the user
+     */
+    fun change(direction: Swipe): Symbols
+     * Up swipe moves to the next operation symbol, down swipe to the previous.
+     * If the limit of operations is reached, the operation does not change.
+     * If the current symbol is not an operation, it changes to the default operation (+)
+     */
+    private fun changeOperation(direction: Swipe): Symbols
+    /**
+     * Right swipe moves to the next comparison symbol, left swipe to the previous.
+     * If the last type of comparison is reached, the symbol does not change.
+     * If the current symbol is not an comparison, it changes to the default comparison (=)
+     */
+    private fun changeComparison(direction: Swipe): Symbols
+
+    companion object {
+        const val PLUS = '+'
+        const val MINUS = '-'
+        const val MULT = '*'
+        const val DIV = '/'
+        const val EQUAL = '='
+        const val LOWER = '<'
+        const val GREATER = '>'
+        enum class ComparisonSymbols (override val symbol: Char, override val resource: DrawableResource): Symbols {
+            Lower(LOWER, Res.drawable.lower),
+            Equal(EQUAL, Res.drawable.eq),
+            Greater(GREATER, Res.drawable.greater),
+        }
+        enum class OperationSymbols (override val symbol: Char, override val resource: DrawableResource): Symbols {
+            Mult(MULT, Res.drawable.mult),
+            Plus(PLUS, Res.drawable.plus),
+            Minus(MINUS, Res.drawable.minus),
+            Div(DIV, Res.drawable.div)
+        }
+        /**
+         * Returns true if a character is a valid symbol, false otherwise
+         */
+        fun isSymbol(term: Char) : Boolean
+    }
+}
+```
+#### Formula
+```kotlin
+/**
+ * A formula is a list of terms.
+ * It is constructed using a serializable object that contains a formula in text format.
+ */
+data class Formula(private val formulaData: FormulaData) {
+    /**
+     * Returns a text version of the formula
+     */
+    fun translate(): String
+    /**
+     * Returns a data class of the formula
+     */
+    fun serialize(): FormulaData
+    /**
+     * When a symbol changes the formula grows if the symbols is an operation the limit of terms is not reached.
+     * If there are empty quantities consecutive equals are removed
+     */
+    fun changeSymbol(old: Int, new: Symbol): Formula
+    /**
+     * A fruit is added to a quantity if it is not full updating it count by one.
+     * If the formula is the special "one empty term scenario" a sum with an equal is added.
+     */
+    fun addFruit(to: Int): Formula
+    /**
+     * A fruit is subtracted from a quantity and added to another if it is not full.
+     * If all quantities are empty, all terms are removed and an empty quantity formula is returned.
+     * If a quantity is left empty, the formula is checked for consecutive equals.
+     */
+    fun moveFruit(from: Int, to: Int): Formula
+    /**
+     * A fruit is subtracted from a quantity and moved to the basket.
+     * If all quantities are empty, all terms are removed and an empty quantity formula is returned.
+     * If a quantity is left empty, the formula is checked for consecutive equals.
+     */
+    fun removeFruit(from: Int): Formula
+    /**
+     * A formula is considered empty the there is one empty quantity.
+     * Note that a formula without terms can not exist.
+     */
+    fun isEmpty(): Boolean
+
+    companion object {
+        const val LIMIT = 7 // Maximum number of terms in a formula
+        /**
+         * Translates a text formula to a list of classes representing the terms
+         */
+        private fun translate(text: String): List<Term>
+        /**
+         *  Given a text formula returns true if the character for a given index is the first of a two digit number
+         */
+        private fun isFirstDigitOfTwo(text: String, i: Int): Boolean
+        /**
+         * Translates a list of terms to a text representation of a formula
+         */
+        private fun translate(terms: List<Term>): String
+        /**
+         * Returns a formula with another equal sign and an empty quantity if the limit of terms has not been reached.
+         */
+        private fun addEqual(changedTerms: MutableList<Term>): MutableList<Term>
+        /**
+         * Adds a plus sign, an empty quantity, an equal sign and another empty quantity to a formula.
+         */
+        fun addSum(changedTerms: MutableList<Term>): MutableList<Term>
+        /**
+         * If there are empty quantities with equal signs side by side removes the terms to get the shortest possible formula.
+         */
+        private fun removeConsecutiveEmptyEqual(changedTerms: MutableList<Term>): MutableList<Term>
+        /**
+         * If all quantities are empty, all terms are removed and an empty quantity formula is returned.
+         * If a quantity is left empty, the formula is checked for consecutive equals.
+         */
+        fun updateFormulaAfterFruitRemoved(changedTerms: MutableList<Term>): MutableList<Term>
+        /**
+         * Creates a copy of a term
+         */
+        fun copy(term: Term): Term
+    }
+}
+```
 ### View
 ## :elephant: Scalability
+With a simple calculation we can estimate near **30 million** unique possible **formulas** could be stored in the database.
+
+<img width="2810" height="518" alt="formula-scale" src="https://github.com/user-attachments/assets/48f54e51-f85b-41d5-a735-1b0eb992c6e5" />
+
+- A **quantity** can contains a value from 0 to 16. So **17** possibilities.
+- A **symbol** can be one of 3 comparisons or 4 operations. So **7** possibilities.
+- A **formula** can be 3, 5 or 7 terms long, with some conditions:
+    1. 3 term formulas can only have comparison symbols. So 867 possibilities.
+    2. 5 term formulas must have a comparison and an operation (in any order), so 2 combinations for all the combinations of 5 terms. So 206346 possibilities.
+    3. 7 term formulas can have any combination of symbols without restriction. So 286477703 possibilities
+    4. The "unitary formula" (that is a quantity with count 0) is never stored in the list and cannot be stored.
+    5. Consecutive equals of empty quantities are not allowed, so _0_, _0=0_, _0=0=0_, _0=0=0=0_ are all equivalent, also _5=0_ is equivalent to _5=0=0_ an so on.
+ 
+The calculation in the image does not take points 4 and 5 into account, but it will just be a few less formulas, so the magnitude of the estimation does not change.
 ## :floppy_disk: Database
 - **Formulas** stores published formulas as text using the formula as the _primary key_ to prevent duplicates and number of votes is an integer to sort by popularity.
 - **Votes** stores every vote, it is related to formulas by the formula text as a _foreign key_. A vote _primary key_ is a combination of the **formula** and the **user ID**, so one vote for user and formula is enforced. On the field **vote** _true_ means add up one vote, _false_ substract one vote.
