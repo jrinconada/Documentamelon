@@ -351,10 +351,10 @@ BEGIN
 END;
 ```
 ## :elephant: Scalability
-There are two types of data on the database: `formulas` and `votes`. Let's estimate the scale of each one.
+There are two types of data on the [database](#database): `formulas` and `votes`. Let's see how each one scales.
 #### Formulas
 The first constraint on the size of `formulas` is the **uniqueness** of the formula, so it is limited to the possible combinations of terms.
-With a simple calculation we can estimate near **30 million** unique possible **formulas** could be stored in the database.
+With some calculations we can estimate near **30 million** unique possible **formulas** could be generated. Here is a more detailed analyisis:
 
 <img width="2810" height="518" alt="formula-scale" src="https://github.com/user-attachments/assets/48f54e51-f85b-41d5-a735-1b0eb992c6e5" />
 
@@ -369,7 +369,8 @@ With a simple calculation we can estimate near **30 million** unique possible **
  
 The calculation in the image does not take points 4 and 5 into account, but it will just be a few less formulas, so the magnitude of the estimation does not change.
 
-Having potentialy millions of formulas it is not usable to retrive and show directly in an frontend application, so **pagination** is implement with an infinite scroll and load a fixed size page by index.
+Having potentialy millions of formulas, it is not usable to retrive and show them directly in an frontend application, so **pagination** is implement with an infinite scroll and load a fixed size page by index.
 
-To have millions of formulas as useful information for the user they have to be **ranked**. To grant the users all control over the published formulas a **demotratic** ranking based on **votes** is implemented. So users vote on the formulas and they are sorted by the number of votes.
+To have millions of formulas as useful information for the user, they must be **sorted** in some way. We want to grant users full control over the published formulas. To achive this, a **demotratic ranking** based on **votes** is implemented. So users vote on the formulas and they are sorted by the number of votes.
 #### Votes
+Each user can vote for each formula so we may need to store potentialy **billions** of votes on the database: _users_ x _formulas_ x votes
