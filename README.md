@@ -13,8 +13,8 @@
 - **Democratic presence**: Formulas are ranked using a _voting system without account_. Liked formulas move up the list, disliked move down and 0 votes removes the formula.
 - **Profiles**: 4 ways to use de App, as _Offline_ users only use the playground, _Students_ can see the list of formulas, _Citizens_ can vote and _Teachers_ can publish formulas.
 ## :wrench: Tools
-- **Postgres** [database](#database) on _Supabase_.
-- **Kotlin Multiplatform** application [develoment](#architecture) on _Android_, _Windows_ and _Web Assembly_.
+- **Postgres** database on _Supabase_.
+- **Kotlin Multiplatform** application develoment on _Android_, _Windows_ and _Web Assembly_.
 - **Ktor** client library to make _HTTP_ requests to the _Supabase_ _REST API_.
 - **Git** for version control and documentation on _GitHub_.
 - **Kanban** for tracking tasks on _Trello_.
@@ -350,27 +350,65 @@ BEGIN
   RETURN NEW;
 END;
 ```
-## :elephant: Scalability
-There are two types of data on the [database](#database): `formulas` and `votes`. Let's see how each one scales.
-#### Formulas
+## :elephant: Scale
+### Storage
+There are two types of data on the database: `formulas` and `votes`. Let's see how each one scales.
+
 The first constraint on the size of `formulas` is the **uniqueness** of the formula, so it is limited to the possible combinations of terms.
 With some calculations we can estimate near **30 million** unique possible **formulas** could be generated. Here is a more detailed analyisis:
 
 <img width="2810" height="518" alt="formula-scale" src="https://github.com/user-attachments/assets/48f54e51-f85b-41d5-a735-1b0eb992c6e5" />
 
-- A **quantity** can contains a value from 0 to 16. So **17** possibilities.
-- A **symbol** can be one of 3 comparisons or 4 operations. So **7** possibilities.
+- A **quantity** can contains a value from 0 to 16. **17** possibilities.
+- A **symbol** can be one of 3 comparisons or 4 operations. **7** possibilities.
 - A **formula** can be 3, 5 or 7 terms long, with some conditions:
-    1. 3 term formulas can only have comparison symbols. So 867 possibilities.
-    2. 5 term formulas must have a comparison and an operation (in any order), so 2 combinations for all the combinations of 5 terms. So 206346 possibilities.
-    3. 7 term formulas can have any combination of symbols without restriction. So 286477703 possibilities
-    4. The "unitary formula" (that is a quantity with count 0) is never stored in the list and cannot be stored.
-    5. Consecutive equals of empty quantities are not allowed, so _0_, _0=0_, _0=0=0_, _0=0=0=0_ are all equivalent, also _5=0_ is equivalent to _5=0=0_ an so on.
+    1. 3 term formulas can only have comparison symbols. **867** possibilities.
+    2. 5 term formulas must have a comparison and an operation (in any order), so 2 combinations for all the combinations of 5 terms. **206346** possibilities.
+    3. 7 term formulas can have any combination of symbols without restriction. **286477703** possibilities.
+    4. The "unitary formula" (that is a quantity with count 0) is never stored in the list and cannot be stored. **1** less possibility.
+    5. Consecutive equals of empty quantities are not allowed, so _0_, _0=0_, _0=0=0_, _0=0=0=0_ are all equivalent, also _5=0_ is equivalent to _5=0=0_ an so on. Around **100** possibilities less.
  
 The calculation in the image does not take points 4 and 5 into account, but it will just be a few less formulas, so the magnitude of the estimation does not change.
 
-Having potentialy millions of formulas, it is not usable to retrive and show them directly in an frontend application, so **pagination** is implement with an infinite scroll and load a fixed size page by index.
+Each user can vote once for each formula so we may need to store potentialy **billions** or **trillions** (:stuck_out_tongue_closed_eyes: hopefully) of votes on the database:
+```kotlin
+votes = users x formulas
+```
+Based on typical user behaviour, most users won't publish any formula and will just vote for a few formulas, a more realistic estimation based on user profiles:
+- **Teacher**: 10 published formulas, 30 votes on average.
+- **Student**: 0 published formulas, 10 votes on average.
 
-To have millions of formulas as useful information for the user, they must be **sorted** in some way. We want to grant users full control over the published formulas. To achive this, a **demotratic ranking** based on **votes** is implemented. So users vote on the formulas and they are sorted by the number of votes.
-#### Votes
-Each user can vote for each formula so we may need to store potentialy **billions** of votes on the database: _users_ x _formulas_ x votes
+Asuming a `1/20` ratio of teacher/student:
+```kotlin
+For 1000 users:
+50 teachers x 10 formulas = 500 formulas
+(50 teachers x 30 votes) + (950 students x 10 votes) = 11000 votes
+
+For 10000 users:
+500 teachers x 10 formulas = 5000 formulas
+(500 teachers x 30 votes) + (9500 students x 10 votes) = 110000 votes
+
+For 1000000 users:
+50000 teachers x 10 formulas = 500000 formulas
+(50000 teachers x 30 votes) + (950000 students x 10 votes) = 11000000 votes
+```
+### Requests
+This are the _API requests_ with the frequency of use in the application:
+1. **Fetch formulas**: Once when the app opens and fetch a few more for every sroll to the bottom of the list.
+2. **Check if formula exixts**: For every change in the formula.
+3. **Publish formula**: When taps the button to upload a new formula.
+4. **Check user vote for a formula**: For every change in the formula.
+5. **Vote for a formula**: When a user taps one of the two buttons to vote up or down.
+
+Point 1. will happend often but it will just usually trigger around 1 request to retrive the first formulas, ocasionally a few more when the users scrolls down a lot.
+Points 3. and 5. add or modify information. They will not happend often, 5. may be a bit more frequent.
+Points 2. and 4. will be trigger contantly, making the request for every change the user makes when editing a formula.
+### Solutions
+To improve the usability of the application this solutions are implemented:
+- **Uniqueness**: As explained before, limits the maximum number of formulas to a tens of millions, but realisticaly this limitation will result in a logarithmic decline in formula generation, taking into account that, from an academic point of view, only some types of formulas will be published.
+- **Pagination**: Having potentialy even just hundreds of formulas, it is not usable to retrive and show them directly in an frontend application, so pagination is implement with an infinite scroll and load a fixed page size by index.
+- **Ranking**: To list several of formulas as useful information for the user, they must be **sorted** in some way. We want to grant users full control over the published formulas. To achive this, a **demotratic ranking** based on **votes** is implemented. So users vote on the formulas and they are sorted by the number of votes.
+- **Mutex**: If a user is scrolling fast on the list of formulas, multiple fetch request will be triggered to get more than one page at the same time. To avoid a problem, requests are blocked with **mutual exclution**, effectibly creating a **queue** for this scenario.
+- **Grouping requests**: Checking if a formula exist and if it the user has voted it are two request done every time the formula changes or a new formula is added, so both are grouped an executed one after the other to avoid inconsistencies.
+- **Conditional request**: If a formula does not exist, it does not make sense to check for votes, so this request is only launched after we know the formula exists.
+- **Job cancelling**: A user may make some fast changes to the formula, and every time the two checking requests are launched. If a new formula is on the editor, the previous checking request is rendered irrelevant, so it is cancelled along with the conditional vote request.
