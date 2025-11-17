@@ -280,6 +280,85 @@ data class Formula(private val formulaData: FormulaData) {
     }
 }
 ```
+#### Validator
+A `static class` is used to check if the formula is a **valid equation** and inform the user in the interface:
+```kotlin
+/**
+ * Validate a formula with PEDMAS order of operations
+ * - Parenthesis and Exponents are not supported
+ * - First operate with Divisions and Multiplications with the same priority and left to right
+ * - Then operate Addition and Substraction have with the same priority and left to right
+ * - Finally evaluate the comparators
+ */
+object Validator {
+    /**
+     * Returns true is a formula is valid, meaning the two sides of the equations are equal
+     * 1. If terms are less than 3 always returns false
+     * 2. Performs division and multiplication
+     * 3. Performs addition and substraction
+     * 4. Evaluates the comparators
+     */
+    fun isValid(terms: List<Term>): Boolean
+    /**
+     * Utility function to turn the list of terms into a variable list of integers
+     */
+    private fun toList(terms: List<Term>): MutableList<Int>
+    /**
+     * Utility function to remove the three terms of the operation, leaving just the result
+     */
+    private fun replace(i: Int, formula: MutableList<Int>, result: Int)
+    /**
+     * Recursive function to perform every operation, takes a list, iterates throw every term,
+     * removes the three terms of the operation, inserts the result and returns the operation of the rest of the list,
+     * until the list if over and returns the remaining formula
+     * If divAndMult is true, performs division and multiplication if it is false, addition & substraction
+     */
+    private fun operate(formula: MutableList<Int>, divAndMult: Boolean): MutableList<Int>
+    /**
+     * Iterates throw every 3 terms evaluating the comparison,
+     * If the equation is true continues to the next one
+     * If the equation is false returns false without evaluating the rest
+     * If the end of the loop is reached means that all equations are true and the formula is valid
+     */
+    private fun evaluate(formula: MutableList<Int>): Boolean
+}
+```
+#### View Models
+#### Profile
+This is a `static class` holding the **profile** of the user, this defines access to specific application features. The profile is hierarchical, this means, the next step can do everything the previous one does, plus other stuff. This are the headers of the `public` functions with the comments explainig each role:
+```kotlin
+/**
+ * Can edit formulas, browse the list of published formulas, vote and publish new formulas
+ */
+fun isTeacher(): Boolean
+/**
+ * Can edit formulas, browse the list of published formulas and vote
+ */
+fun isCitizenOrMore(): Boolean
+/**
+ * Can edit formulas and browse the list of published formulas
+ */
+fun isStudentOrMore(): Boolean
+/**
+ * Can edit formulas without access to the community (no internet connection)
+ */
+fun isOffline(): Boolean
+```
+The profile together with other conditions define the actions that can be performed by the user (showing or hiding the corresponding buttons on the interface) in the community with this functions:
+```kotlin
+// If the formula exists in the database.
+fun isPublished(): Boolean
+// If the formula is not published and the user is a teacher.
+fun canPublish(): Boolean
+// If the user has an ID, the formula is published, the state of the vote is known (no connection error) and the user is a citizen or a teacher.
+fun canVote(): Boolean
+// If a user can vote (previous condition) and has not voted this formula before or the vote was the oposite.
+fun canVoteUp(): Boolean
+// If a user can vote and has not voted this formula before or the vote was the oposite.
+fun canVoteDown(): Boolean
+// If the user is a student or more and the list is not empty (because there are no formulas or there ir been a connection error).
+fun canSeePublishedFormulas(): Boolean
+```
 ### View
 ## :floppy_disk: Database
 - `Formulas` stores published formulas as text using the formula as the _primary key_ to prevent duplicates and number of votes is an integer to sort by popularity.
