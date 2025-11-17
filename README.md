@@ -13,7 +13,7 @@
 - **Democratic presence**: Formulas are ranked using a _voting system without account_. Liked formulas move up the list, disliked move down and 0 votes removes the formula.
 - **Profiles**: 4 ways to use de App, as _Offline_ users only use the playground, _Students_ can see the list of formulas, _Citizens_ can vote and _Teachers_ can publish formulas.
 ## :wrench: Tools
-- **Postgres** database on _Supabase_.
+- **Postgres** [database](#floppy_disk-database) on _Supabase_.
 - **Kotlin Multiplatform** application develoment on _Android_, _Windows_ and _Web Assembly_.
 - **Ktor** client library to make _HTTP_ requests to the _Supabase_ _REST API_.
 - **Git** for version control and documentation on _GitHub_.
@@ -324,6 +324,124 @@ object Validator {
 }
 ```
 #### View Models
+The _Android_ `ViewModel` is used with `StateFlow` for the _View Models_ that hold the state of the **list** of formulas and the current **formula** on the **editor**. Both have the `Repository` as a dependency to make request to the database. `FormulaViewModel` will also need the **user ID** for voting and the `Profile` to know if it need to do check request.
+
+`FormulasViewModel` is used to hold the state of the list of published formulas, includes important logic for **pagination**, avoid **duplication** and **parallel** requests (check the [scale section](#elephant-scale) for more details).
+
+This is some of the code and comments of the `FormulasViewModel`. Implementation details of the functions and `StateFlow` variables are not included for clarity:
+```kotlin
+class FormulasViewModel(private val formulasRepository: FormulasRepository): ViewModel() {
+    // List of loaded formulas
+    val formulas: List<Formula>
+    /**
+     * Empty the list of formulas and load the first page
+     */
+    fun loadFirst()
+    /**
+     * Load a new page of formulas starting from a given position.
+     * Checks if the page was already loaded, not to load it again
+     */
+    fun loadMore(from: Int)
+    /**
+     * Empty the list of formulas and reset last page index
+     */
+    fun unload()
+    /**
+     * Request a new page of formulas and adds them to the list
+     * Uses a mutex to avoid multiple requests at the same time
+     * Converts list to Sets to make sure not add duplicate formulas
+     */
+    private fun load()
+}
+```
+`FormulaViewModel` is used to hold the state of the formula on the **editor** and has 4 variables to expose information about **validation**, **publication**, **voting** and data **updating** that needs to be reflected on the user interface.
+
+This is some of the code and comments of the `FormulaViewModel`. Again, some implementation details are not included for clarity:
+```kotlin
+class FormulaViewModel(private val formulasRepository: FormulasRepository, private val user: String): ViewModel() {
+    enum class VoteState {
+        UP, DOWN, NONE, UNKNOWN
+    }
+    enum class FormulaState {
+        UNPUBLISHED, EXIST, UNKNOWN
+    }
+    // Holds the current formula in the editor, start with the unit formula (an empty quantity) and it is null when no formula is selected and list is shown
+    val formula: Formula?
+    // True if the formula is valid, it will update for every change in the formula
+    val valid: Boolean
+    // The state of the formula is unknown by default, published if the formula is on the database and unpublished if it is not
+    val exist: FormulaState
+    // The state of the vote is unknown by default, none means not yet voted, up or down means voted
+    val voted: VoteState
+    private val _updating = MutableStateFlow(false)
+    // This boolean informs the UI that some change (publishing or voting) is going on, so it can hide other action buttons.
+    val updating: Boolean
+    /**
+     * This function is called when a formula is selected from the list
+     */
+    fun onNewFormula(formula: Formula)
+    /**
+     * This is called to display the list of formulas meaning no formula is selected
+     */
+    fun onNoFormula()
+    /**
+     * This is called on a symbol swipe, the position of the symbol in the list and the direction of the swipe are passed
+     * Formula class methods are called to perform the proper logic
+     */
+    fun onSymbolChange(i: Int, direction: Swipe)
+    /**
+     * When a fruit is added to a quantity the index of the quantity in the list is passed
+     * The corresponding method is called on the Formula class to perform the proper logic
+     */
+    fun onFruitAdded(to: Int)
+    /**
+     * When a fruit is removed from a quantity the index of the quantity in the list is passed
+     * The corresponding method is called on the Formula class to perform the proper logic
+     */
+    fun onFruitRemoved(from: Int)
+    /**
+     * When a fruit is moved from a quantity to another the indexes are passed
+     * The corresponding method is called on the Formula class to perform the proper logic
+     */
+    fun onFruitMoved(from: Int, to: Int)
+    /**
+     * Every time the formula changes (symbol change or fruit add, remove or move) this function is called to validate the formula 
+     * Also checks if published and the corresponding votes (only if the user has an community role: student, citizen or teacher)
+     */
+    private fun onFormulaUpdated()
+    /**
+     * Checks if the formula is published, if it is, checks if the user has voted 
+     */
+    private fun checkCommunity()
+    /**
+     * Calls the Validator class on the formula to validate the equation
+     */
+    private fun validate()
+    /**
+     * Checks if the formula is published in the database
+     * A connection error will result in an unknown state
+     */
+    private suspend fun exist()
+    /**
+     * Publishes the formula on the database, checks the state after to ensure publication and votes
+     */
+    fun save()
+    /**
+     * Checks the voting state, a connection error will result in an unknown state
+     */
+    private suspend fun voted(user: String)
+    /**
+     * Votes for the formula, current user and type of vote are passed
+     * Checks the state after to update voting buttons
+     */
+    fun vote(user: String, up: Boolean)
+    /**
+     * Cancels running requests on a background job 
+     * This is called before checking the formula state to prevent multiple requests at the same time
+     */
+    private fun cancelPreviousRequest()
+}
+```
 #### Profile
 This is a `static class` holding the **profile** of the user, this defines access to specific application features. The profile is hierarchical, this means, the next step can do everything the previous one does, plus other stuff. This are the headers of the `public` functions with the comments explainig each role:
 ```kotlin
@@ -360,6 +478,11 @@ fun canVoteDown(): Boolean
 fun canSeePublishedFormulas(): Boolean
 ```
 ### View
+This is most complex and largest part of the codebase of the app, includes the logic on how to **show** and **interact** with the formulas. It is divided into 4 packages, let's go one by one in increasing order of complexity.
+#### Common
+#### Formula
+#### Community
+#### Edition
 ## :floppy_disk: Database
 - `Formulas` stores published formulas as text using the formula as the _primary key_ to prevent duplicates and number of votes is an integer to sort by popularity.
 - `Votes` stores every vote, it is related to formulas by the formula text as a _foreign key_. A vote _primary key_ is a combination of the **formula** and the **user ID**, so one vote for user and formula is enforced. On the field `vote` `true` means add up one vote, `false` substract one vote.
