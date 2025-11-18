@@ -25,7 +25,7 @@
 ## :straight_ruler: Architecture
 <img width="500" alt="architecture" src="https://github.com/user-attachments/assets/dcfb96f0-0e1a-4f6d-9a3d-2508d4b37b8d" />
 
-### Data
+### :cd: Data
 `Data classes` are used to use information stored in the database that is retrieved in `FormulaRepository`, an `interface` implemented as a mock list for testing and using _API requests_ to _Supabase_ API for production database, both mock and API are implemented as _singletons_.
 
 `Device` class is used to get an **ID** for **voting** without user intervention the ID of the device _OS_ is retrieved, this is an `expect` class implemented differently in every platform except for the web, because it is not posible to get a consistent unique ID, so voting is not available.
@@ -67,7 +67,7 @@ suspend fun vote(formula: Formula, user: String, up: Boolean, new: Boolean = tru
  */
 suspend fun voted(formula: Formula, user: String): Int?
 ```
-### Domain
+### :traffic_light: Domain
 The main component of this application business logic is the `Formula`, it has a list of `Term` that can be a `Quantity` or a `Symbol`.
 
 <img width="733" height="268" alt="basicformula-tag" src="https://github.com/user-attachments/assets/e570e934-2fec-4186-bc5c-eca2d718a17f" />
@@ -477,11 +477,53 @@ fun canVoteDown(): Boolean
 // If the user is a student or more and the list is not empty (because there are no formulas or there ir been a connection error).
 fun canSeePublishedFormulas(): Boolean
 ```
-### View
-This is most complex and largest part of the codebase of the app, includes the logic on how to **show** and **interact** with the formulas. It is divided into 4 packages, let's go one by one in increasing order of complexity.
+### :eyes: View
+This is most complex and largest part of the codebase of the app, includes the logic on how to **show** and **interact** with the formulas. It is divided into 4 packages and one file as the entry point, let's go one by one in increasing order of complexity. 
+To start the application, the _device class_ is needed as a dependency because it needs to be constructed with the `ApplicationContext` on the _Android_ platform, the profile is defined and the main `Composable` is created. `FormulaCommunity` encapsulates all online actions and containts the list and the editing formula. This is the code of the `App.kt` file:
+```kotlin
+@Composable
+fun App(device: Device) {
+    Profile.makeTeacher()
+    FormulaCommunity(device)
+}
+```
 #### Common
-#### Formula
+This are useful classes for the whole interface:
+- `Colors` is just a _static class_ to store the application color values.
+- `ImageButton` is a round button with a padding and a variable inner padding depending on the size. Recives image, size and fires an on click event. This button class is used for all app buttons.
+- `AnimatedView` can apply an animation to any `View`. A **visibility** animation of **scaling** with a _spring like_ behaviour is applied by default. Optionally a jumping animation and a delay can be applied (this is used to play a kind of **jumping wave** when the formula is valid, published or voted). Most visual elements use the default animation to show and hide (formula terms, fruits, buttons and list items).
+- `Fruit` is an _static class_ that holds the **current fruit** image, with the _change function_ it cycles through the avaiable fruit and uses a `StateFlow` variable to change the fruit displayed in the whole application.
 #### Community
+In the community package there is the main view: `FormulaCommunity` and 3 other `composables` related to the formula list.
+`FormulaCommunity` is the only actual "screen" of the application, even though it feels like there are two: formula edition and formula list. This screen starts by showing the `FormulaEditor` with the _unitary formula_, then checks if it has to show every button, using the logic described in the [Profile section](#profile) (by the way, this logic is just between the line separating view and domain code). List, publish and vote buttons a are all togheter in a `Box` on the top right corner, if buttons list is pressed no formula is selected and `FormulaList` is displayed.
+This is a simplified code of `FormulaCommunity`, this is basically pseudocode since most of code is been removed for clarity:
+```kotlin
+// If profile is not offline (student, citizen or teacher) load the first page of formulas on start
+if (Profile.isStudentOrMore()) {
+    LaunchedEffect(updating) {
+        if (updating) formulasViewModel.unload()
+        else formulasViewModel.loadFirst()
+    }
+}
+// If a formula is selected show the editor, if not, show the list of formulas
+if (selectedFormula)
+    FormulaEditor(formulaViewModel)
+    Box {
+        if (canSeePublishedFormulas())
+            ImageButton(Res.drawable.list) { formulaViewModel.onNoFormula() }
+        if (canPublish())
+            ImageButton(Res.drawable.arrow) { formulaViewModel.save() }
+        if (canVoteUp())
+            ImageButton(Res.drawable.up) { formulaViewModel.vote(device.id(), true) }
+        if (canVoteDown()) 
+            ImageButton(Res.drawable.down) { formulaViewModel.vote(device.id(), false) }
+    }
+else
+    FormulaList(formulasViewModel) { formulaViewModel.onNewFormula(it) }
+```
+<img width="709" height="416" alt="list-tag" src="https://github.com/user-attachments/assets/73f54baa-ef5b-4b87-862d-0fbc0397bded" />
+
+#### Formula
 #### Edition
 ## :floppy_disk: Database
 - `Formulas` stores published formulas as text using the formula as the _primary key_ to prevent duplicates and number of votes is an integer to sort by popularity.
