@@ -194,7 +194,12 @@ data class Symbol(private val letter: Char): Term() {
         /**
          * Returns true if a character is a valid symbol, false otherwise
          */
-        fun isSymbol(term: Char) : Boolean
+        fun isSymbol(term: Char) : Boolean        
+        /**
+         * An ID is needed to compare symbols.
+         * It is above the maximum possible value to prevent collisions with numerical terms
+         */
+        fun id(symbol: Symbols) : Float
     }
 }
 ```
@@ -277,6 +282,12 @@ data class Formula(private val formulaData: FormulaData) {
          * Creates a copy of a term
          */
         fun copy(term: Term): Term
+        /**
+         * Returns every quantity maximum multiplied for the maximum number of possible terms.
+         * This calculate the maximum possible value, for example, with 7 terms and 16 as max number:
+         * 7 terms - 3 symbols = 4. MAXVALUE = 16 x 16 x 16 x 16
+         */
+        fun maxValue() : Float
     }
 }
 ```
@@ -656,3 +667,9 @@ To improve the usability of the application this solutions are implemented:
 - **Grouping requests**: Checking if a formula exist and if it the user has voted it are two request done every time the formula changes or a new formula is added, so both are grouped an executed one after the other to avoid inconsistencies.
 - **Conditional request**: If a formula does not exist, it does not make sense to check for votes, so this request is only launched after we know the formula exists.
 - **Job cancelling**: A user may make some fast changes to the formula, and every time the two checking requests are launched. If a new formula is on the editor, the previous checking request is rendered irrelevant, so it is cancelled along with the conditional vote request.
+### Testing
+#### Mock API
+A concrete impletementation of the `FormulasRepository` interface with using a `mutable` `List` of `Pair` of formulas and votes using basic list method and `delay` to simulate database requests.
+#### Unit testing
+The most important code to be tested id the formula **validation** for it is a _complex recursive_ function that is the **core** of the **math** **logic** of the application.
+#### UI testing
