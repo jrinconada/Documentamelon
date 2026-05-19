@@ -1,19 +1,19 @@
-# :watermelon: Documentamelon
+# 🍉 Documentamelon
 `Technical documentation for the Calculamelon App`
-## :pear: Intro
+## 🍐 Intro
 **Calculamelon** is an application to learn math with a language without numbers or letters, just basic math symbols and fruits using an intuitive **playground** and a repository of **published formulas** managed by a **democratic community**.
-## :tangerine: Features
-### :lemon: Frontend
+## 🍊 Features
+### 🍋 Frontend
 - **Gestures**: _Drag and drop_ to move fruits, _swipe_ to change symbols and _double tap_ to change the fruit.
 - **Animations**: Not just for aesthetics, fruits and symbols move and scale properly acording to user interaction.
 - **Responsiveness**: Adapted scale and margin to any screen for _web_, _mobile_ and _desktop_.
 - **Tech hiding**: There is no text in the whole app, so no error messages, if a request fails, the associated button will not show on screen.
-### :apple: Backend
+### 🍎 Backend
 - **Online formulas**: Published formulas to try to solve, not linked to an account, everything is _public_ and _anonymous_.
 - **Democratic presence**: Formulas are ranked using a _voting system without account_. Liked formulas move up the list, disliked move down and 0 votes removes the formula.
 - **Profiles**: 4 ways to use de App, as _Offline_ users only use the playground, _Students_ can see the list of formulas, _Citizens_ can vote and _Teachers_ can publish formulas.
-## :wrench: Tools
-- **Postgres** [database](#floppy_disk-database) on _Supabase_.
+## 🔧 Tools
+- **Postgres** database on _Supabase_.
 - **Kotlin Multiplatform** application develoment on _Android_, _Windows_ and _Web Assembly_.
 - **Ktor** client library to make _HTTP_ requests to the _Supabase_ _REST API_.
 - **Git** for version control and documentation on _GitHub_.
@@ -22,10 +22,10 @@
 - **Carrd** for the landing [page](https://calculamelon.carrd.co/).
 <img width="500" alt="techstack" src="https://github.com/user-attachments/assets/7c59cb64-ce36-4734-92ff-d01704fbb501" />
 
-## :straight_ruler: Architecture
+## 📏 Architecture
 <img width="500" alt="architecture" src="https://github.com/user-attachments/assets/dcfb96f0-0e1a-4f6d-9a3d-2508d4b37b8d" />
 
-### :cd: Data
+### 💿 Data
 `Data classes` are used to use information stored in the database that is retrieved in `FormulaRepository`, an `interface` implemented as a mock list for testing and using _API requests_ to _Supabase_ API for production database, both mock and API are implemented as _singletons_.
 
 `Device` class is used to get an **ID** for **voting** without user intervention the ID of the device _OS_ is retrieved, this is an `expect` class implemented differently in every platform except for the web, because it is not posible to get a consistent unique ID, so voting is not available.
@@ -67,10 +67,10 @@ suspend fun vote(formula: Formula, user: String, up: Boolean, new: Boolean = tru
  */
 suspend fun voted(formula: Formula, user: String): Int?
 ```
-### :traffic_light: Domain
+### 🚥 Domain
 The main component of this application business logic is the `Formula`, it has a list of `Term` that can be a `Quantity` or a `Symbol`.
 
-<img width="733" height="268" alt="basicformula-tag" src="https://github.com/user-attachments/assets/e570e934-2fec-4186-bc5c-eca2d718a17f" />
+<img width="733" alt="basicformula-tag" src="https://github.com/user-attachments/assets/e570e934-2fec-4186-bc5c-eca2d718a17f" />
 
 Here is a _simplified class diagram_ to illustrate the fundamental relations and caracteristics of this 4 components.
 ```mermaid
@@ -337,7 +337,7 @@ object Validator {
 #### View Models
 The _Android_ `ViewModel` is used with `StateFlow` for the _View Models_ that hold the state of the **list** of formulas and the current **formula** on the **editor**. Both have the `Repository` as a dependency to make request to the database. `FormulaViewModel` will also need the **user ID** for voting and the `Profile` to know if it need to do check request.
 
-`FormulasViewModel` is used to hold the state of the list of published formulas, includes important logic for **pagination**, avoid **duplication** and **parallel** requests (check the [scale section](#elephant-scale) for more details).
+`FormulasViewModel` is used to hold the state of the list of published formulas, includes important logic for **pagination**, avoid **duplication** and **parallel** requests (check the *scale section* for more details).
 
 This is some of the code and comments of the `FormulasViewModel`. Implementation details of the functions and `StateFlow` variables are not included for clarity:
 ```kotlin
@@ -488,7 +488,7 @@ fun canVoteDown(): Boolean
 // If the user is a student or more and the list is not empty (because there are no formulas or there ir been a connection error).
 fun canSeePublishedFormulas(): Boolean
 ```
-### :eyes: View
+### 👀 View
 This is most complex and largest part of the codebase of the app, includes the logic on how to **show** and **interact** with the formulas. It is divided into 4 packages and one file as the entry point, let's go one by one in increasing order of complexity. 
 To start the application, the _device class_ is needed as a dependency because it needs to be constructed with the `ApplicationContext` on the _Android_ platform, the profile is defined and the main `Composable` is created. `FormulaCommunity` encapsulates all online actions and containts the list and the editing formula. This is the code of the `App.kt` file:
 ```kotlin
@@ -506,7 +506,7 @@ This are useful classes for the whole interface:
 - `Fruit` is an _static class_ that holds the **current fruit** image, with the _change function_ it cycles through the avaiable fruit and uses a `StateFlow` variable to change the fruit displayed in the whole application.
 #### Community
 In the community package there is the main view: `FormulaCommunity` and 3 other `composables` related to the formula list.
-`FormulaCommunity` is the only actual "screen" of the application, even though it feels like there are two: formula edition and formula list. This screen starts by showing the `FormulaEditor` with the _unitary formula_, then checks if it has to show every button, using the logic described in the [Profile section](#profile) (by the way, this logic is just between the line separating view and domain code). List, publish and vote buttons a are all togheter in a `Box` on the top right corner, if buttons list is pressed no formula is selected and `FormulaList` is displayed.
+`FormulaCommunity` is the only actual "screen" of the application, even though it feels like there are two: formula edition and formula list. This screen starts by showing the `FormulaEditor` with the _unitary formula_, then checks if it has to show every button, using the logic described in the *profile section* (by the way, this logic is just between the line separating view and domain code). List, publish and vote buttons a are all togheter in a `Box` on the top right corner, if buttons list is pressed no formula is selected and `FormulaList` is displayed.
 This is a simplified code of `FormulaCommunity`, this is basically pseudocode since most of code is been removed for clarity:
 ```kotlin
 // If profile is not offline (student, citizen or teacher) load the first page of formulas on start
@@ -532,11 +532,11 @@ if (selectedFormula)
 else
     FormulaList(formulasViewModel) { formulaViewModel.onNewFormula(it) }
 ```
-<img width="709" height="416" alt="list-tag" src="https://github.com/user-attachments/assets/73f54baa-ef5b-4b87-862d-0fbc0397bded" />
+<img width="709" alt="list-tag" src="https://github.com/user-attachments/assets/73f54baa-ef5b-4b87-862d-0fbc0397bded" />
 
 #### Formula
 #### Edition
-## :floppy_disk: Database
+## 💾 Database
 - `Formulas` stores published formulas as text using the formula as the _primary key_ to prevent duplicates and number of votes is an integer to sort by popularity.
 - `Votes` stores every vote, it is related to formulas by the formula text as a _foreign key_. A vote _primary key_ is a combination of the **formula** and the **user ID**, so one vote for user and formula is enforced. On the field `vote` `true` means add up one vote, `false` substract one vote.
 ### Schema
@@ -577,7 +577,7 @@ alter policy "Allow vote modification" on "public"."votes" to public using (true
 ### Triggers
 When a vote is **inserted** or **updated** a **trigger** is used to update the **vote count** on the **formula table** for that formula.
 
-<img width="1440" height="161" alt="database-triggers" src="https://github.com/user-attachments/assets/eb1e1791-03c9-49f7-be86-7a7906bb7592" />
+<img width="1440" alt="database-triggers" src="https://github.com/user-attachments/assets/eb1e1791-03c9-49f7-be86-7a7906bb7592" />
 
 ```plpgsql
 DECLARE
@@ -605,14 +605,14 @@ BEGIN
   RETURN NEW;
 END;
 ```
-## :elephant: Scale
+## 🐘 Scale
 ### Storage
 There are two types of data on the database: `formulas` and `votes`. Let's see how each one scales.
 
 The first constraint on the size of `formulas` is the **uniqueness** of the formula, so it is limited to the possible combinations of terms.
 With some calculations we can estimate near **30 million** unique possible **formulas** could be generated. Here is a more detailed analyisis:
 
-<img width="2810" height="518" alt="formula-scale" src="https://github.com/user-attachments/assets/48f54e51-f85b-41d5-a735-1b0eb992c6e5" />
+<img width="2810" alt="formula-scale" src="https://github.com/user-attachments/assets/48f54e51-f85b-41d5-a735-1b0eb992c6e5" />
 
 - A **quantity** can contains a value from 0 to 16. **17** possibilities.
 - A **symbol** can be one of 3 comparisons or 4 operations. **7** possibilities.
@@ -672,4 +672,3 @@ To improve the usability of the application this solutions are implemented:
 A concrete impletementation of the `FormulasRepository` interface with using a `mutable` `List` of `Pair` of formulas and votes using basic list method and `delay` to simulate database requests.
 #### Unit testing
 The most important code to be tested id the formula **validation** for it is a _complex recursive_ function that is the **core** of the **math** **logic** of the application.
-#### UI testing
