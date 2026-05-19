@@ -535,7 +535,59 @@ else
 <img width="709" alt="list-tag" src="https://github.com/user-attachments/assets/73f54baa-ef5b-4b87-862d-0fbc0397bded" />
 
 #### Formula
+A formula is just a `Row` of terms that can be a **symbol**, that is just a image or a **quantity** that is a collection of **fruits** arranged using some complex positioning and size rules calulated in the `FruitsArrangement` object to be properly displayed inside the quantity.
+
+This is a simplified version of the `FormulaView` implementation:
+```kotlin
+Row {
+    formula.terms.forEach { term ->
+        if (term is Symbol) SymbolView
+        if (term is Quantity) QuantityView
+    }
+}
+```
 #### Edition
+<img width="788" alt="allbuttons-tag" src="https://github.com/user-attachments/assets/6765ae82-818c-42fe-860e-961c251cc307" />
+
+In `FormulaEditor` each term is wrapped in an `AnimatedView` for the validation jump. Then each feature is implemented in a different `Composable`, a `QuantityViewVariable` contains 0 or more `FruitViewDraggable` that wrapes a `FruitViewChangeable` that has a `FruitView` that is just an image. `BasketView` represents the fruit basket in the corner which contains infinite fruits to drag.
+
+This is a simplified version of he `FormulaEditor` implementation:
+```kotlin
+val valid // Formula validation
+val formula // Terms
+val updating // Changing and community connection
+
+val quantities // To keep track of fruit movements
+var movedFruit // Current moving fruit
+var to // Current fruit destination
+
+// Triggered when a fruit is added to a quantity
+fun addQuantity(i: Int, bounds: Rect)
+
+// Triggered when a fruit is moved anywhere
+fun fruitDragged(bounds: Rect, from: Int = -1) 
+    // Fruit from basket to quantity
+    if (from == -1 && to != -1) {
+        formulaViewModel.onFruitAdded(to)
+    }
+    // Fruit from quantity dropped outside
+    if (from != -1 && to == -1) {
+        formulaViewModel.onFruitRemoved(from)
+    }
+    // Fruit from quantity to another quantity (basket is not involved)
+    if (from != -1 && to != -1 && from != to) formulaViewModel.onFruitMoved(from, to)
+}
+
+Row {
+    formula?.terms?.forEachIndexed {
+        AnimatedView {
+            if (term is Symbol) SymbolView
+            if (term is Quantity) QuantityViewVariable
+        }
+    }
+    BasketView
+}
+```
 ## 💾 Database
 - `Formulas` stores published formulas as text using the formula as the _primary key_ to prevent duplicates and number of votes is an integer to sort by popularity.
 - `Votes` stores every vote, it is related to formulas by the formula text as a _foreign key_. A vote _primary key_ is a combination of the **formula** and the **user ID**, so one vote for user and formula is enforced. On the field `vote` `true` means add up one vote, `false` substract one vote.
